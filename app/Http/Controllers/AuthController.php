@@ -369,11 +369,6 @@ class AuthController extends Controller
         ], 200);
     }
 
-
-
-
-
-
     public function showUserProfile($id, $type)
     {
         if ($type === 'provider') {

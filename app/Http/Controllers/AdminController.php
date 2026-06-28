@@ -271,4 +271,51 @@ class AdminController extends Controller
 
         return response()->json(['message' => 'User activated successfully']);
     }
+
+    public function getAllApprovedPosts()
+    {
+        $halls = Hall::with('provider:id,name,image')
+            ->where('status', true)
+            ->get()
+            ->map(function ($hall) {
+                $hall->post_type = 'hall';
+                return $hall;
+            });
+
+        $foods = Food::with('provider:id,name,image')
+            ->where('status', true)
+            ->get()
+            ->map(function ($food) {
+                $food->post_type = 'food';
+                return $food;
+            });
+
+        $decorations = Decoration::with('provider:id,name,image')
+            ->where('status', true)
+            ->get()
+            ->map(function ($decoration) {
+                $decoration->post_type = 'decoration';
+                return $decoration;
+            });
+
+        $parties = PublicParty::with('provider:id,name,image')
+            ->where('status', true)
+            ->get()
+            ->map(function ($party) {
+                $party->post_type = 'public_party';
+                return $party;
+            });
+
+        $posts = collect()
+            ->merge($halls)
+            ->merge($foods)
+            ->merge($decorations)
+            ->merge($parties)
+            ->values();
+
+        return response()->json([
+            'message' => 'Approved posts retrieved successfully',
+            'data' => $posts
+        ]);
+    }
 }

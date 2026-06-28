@@ -48,11 +48,19 @@ class Hall extends Model
         return $query->where('type', 'outside')->where('status', true);
     }
 
-    public function scopeOfPrice(Builder $query, $amount)
-    {
-        $amount = floatval($amount);
-        //$epsilon = 0.01;
-        return $query->where('price', '<=', $amount)->where('status', true)->orderBy('price', 'asc');
+    public function scopeOfPrice(
+        Builder $query,
+        $amount,
+        $priceType = 'full_day'
+    ) {
+        $column = $priceType === 'hourly'
+            ? 'hour_price'
+            : 'full_day_price';
+
+        return $query
+            ->where($column, '<=', $amount)
+            ->where('status', true)
+            ->orderBy($column);
     }
 
     public function scopeMinCapacity(Builder $query, $value)

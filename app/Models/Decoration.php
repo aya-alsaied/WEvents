@@ -5,11 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 
-
 class Decoration extends Model
 {
     protected $table = 'decorations';
-    protected $fillable = ['provider_id', 'information', 'location', 'price', 'images', 'status'];
+
+    protected $fillable = [
+        'provider_id',
+        'information',
+        'location',
+        'price',
+        'images',
+        'status'
+    ];
+
     protected $casts = [
         'images' => 'array',
         'status' => 'boolean',
@@ -20,21 +28,40 @@ class Decoration extends Model
         return $this->belongsTo(Provider::class, 'provider_id');
     }
 
-    public function bookings() 
+    public function occasions()
     {
-        return $this->hasMany(DecorationBooking::class);    
+        return $this->belongsToMany(
+            Occasion::class,
+            'decoration_occasion',
+            'decoration_id',
+            'occasion_id'
+        );
     }
 
+    public function bookings()
+    {
+        return $this->hasMany(DecorationBooking::class);
+    }
 
     public function scopeOfPrice(Builder $query, $amount)
     {
-        $amount = floatval($amount);
-        //$epsilon = 0.01;
-        return $query->where('price', '<=', $amount)->where('status', true)->orderBy('price', 'asc');
+        return $query
+            ->where('price', '<=', $amount)
+            ->where('status', true)
+            ->orderBy('price');
     }
 
     public function scopeOfLocation(Builder $query, $location)
     {
-        return $query->where('location', $location)->where('status', true);
+        return $query
+            ->where('location', $location)
+            ->where('status', true);
+    }
+
+    public function scopeOfOccasion(Builder $query, $occasionId)
+    {
+        return $query->whereHas('occasions', function ($q) use ($occasionId) {
+            $q->where('occasions.id', $occasionId);
+        });
     }
 }

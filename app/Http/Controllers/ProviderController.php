@@ -69,46 +69,75 @@ class ProviderController extends Controller
 
     public function getMyProfile()
     {
-        $provider = auth('sanctum')->user();
+        $provider = auth('provider')->user();
 
-        $provider->load('profile');
+        if (!$provider) {
+            return response()->json([
+                'message' => 'Provider not found'
+            ], 404);
+        }
+
+        $provider->load([
+            'profile',
+            'services',
+            'halls',
+            'foods',
+            'decorations',
+            'publicParties'
+        ]);
 
         return response()->json([
+            'message' => 'Profile retrieved successfully',
             'provider' => $provider
-        ]);
+        ], 200);
     }
+
     public function showProvider($providerId)
     {
-        $provider = Provider::with(['services', 'profile'])
+        $provider = Provider::with([
+            'profile',
+            'services',
+            'halls',
+            'foods',
+            'decorations',
+            'publicParties'
+        ])
             ->where('id', $providerId)
             ->where('isApproved', true)
             ->first();
 
         if (!$provider) {
-            return response()->json(['message' => 'Provider not found'], 404);
+            return response()->json([
+                'message' => 'Provider not found'
+            ], 404);
         }
 
         return response()->json([
-            'message' => 'Provider retrieved successfully',
-            'data' => $provider
-        ]);
+            'message' => 'Provider profile retrieved successfully',
+            'provider' => $provider
+        ], 200);
     }
 
 
     public function indexProviders()
     {
-        $providers = Provider::with('services')->where('isApproved', true)->get();
+        $providers = Provider::with([
+            'profile',
+            'services',
+            'halls',
+            'foods',
+            'decorations',
+            'publicParties'
+        ])
+            ->where('isApproved', true)
+            ->get();
 
-        return response()->json(['message' => 'Providers retrieved successfully', 'data' => $providers]);
+        return response()->json([
+            'message' => 'Providers retrieved successfully',
+            'providers' => $providers
+        ], 200);
     }
-
-
-
-
-
-
-
-
+    
     public function register(Request $request)
     {
         $request->validate([

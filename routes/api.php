@@ -13,11 +13,6 @@ use App\Http\Controllers\FoodController;
 use App\Http\Controllers\HallServiceController;
 use App\Http\Controllers\PublicPartyController;
 
-
-
-
-
-
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
@@ -35,7 +30,6 @@ Route::get('show/profile/{id}/{type}', [AuthController::class, 'showUserProfile'
 //Route::post('updateProfile', [AuthController::class, 'updateProfile'])->middleware('auth:sanctum');
 Route::post('updateProfile/provider', [AuthController::class, 'updateProfileProvider'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::post('updateProfile/customer', [AuthController::class, 'updateProfileCustomer'])->middleware('auth:sanctum');
-
 
 
 //Function For Provider
@@ -59,6 +53,7 @@ Route::delete('providers/delete/{id}', [AdminController::class, 'deleteProvider'
 Route::delete('users/delete/{id}', [AdminController::class, 'deleteUser'])->middleware('auth:sanctum')->middleware('CheckAdmin');
 Route::patch('providers/{id}/suspend', [AdminController::class, 'suspendProvider'])->middleware('auth:sanctum')->middleware('CheckAdmin');
 Route::patch('users/{id}/suspend', [AdminController::class, 'suspendUser'])->middleware('auth:sanctum')->middleware('CheckAdmin');
+Route::get('/admin/approved-posts', [AdminController::class, 'getAllApprovedPosts'])->middleware('auth:sanctum')->middleware('CheckAdmin');;
 
 //Function For Customers
 Route::post('customers/register',  [CustomerController::class, 'register']);
@@ -122,6 +117,7 @@ Route::post('decorations/{providerId?}', [DecorationController::class, 'filterDe
 Route::get('decoration/show/{decorationId}', [DecorationController::class, 'showDecoration'])->middleware('auth:sanctum');
 Route::get('decoration/index', [DecorationController::class, 'indexDecorations'])->middleware('auth:sanctum');
 Route::get('decoration/{providerId}', [DecorationController::class, 'providerDecorations'])->middleware('auth:sanctum');
+Route::get('/occasions', [DecorationController::class, 'indexOccasions']);
 
 //Function For Booking
 //Hall Booking

@@ -133,10 +133,6 @@ class HallController extends Controller
 
     public function filterHalls(Request $request, $providerId = null)
     {
-
-        //$sortOrder = in_array($request->get('sort'), ['asc', 'desc']) ? $request->get('sort') : 'asc';
-
-
         if ($providerId) {
             $query = Provider::findOrFail($providerId)->halls();
         } else {
@@ -152,21 +148,27 @@ class HallController extends Controller
         }
 
         if ($request->filled('price')) {
-            $query->ofPrice($request->price);
-        }
+            $priceType = $request->price_type ?? 'full_day';
 
+            $query->ofPrice(
+                $request->price,
+                $priceType
+            );
+        }
 
         if ($request->filled('CapacityOfPeople')) {
             $query->minCapacity($request->CapacityOfPeople);
         }
-
 
         if ($request->filled('location')) {
             $query->ofLocation($request->location);
         }
 
         $halls = $query->get();
-        return response()->json(['Halls:' => $halls], 200);
+
+        return response()->json([
+            'Halls' => $halls
+        ]);
     }
 
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\DecorationRequest;
 use App\Models\Decoration;
 use App\Models\Provider;
+use App\Models\Occasion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -25,18 +26,17 @@ class DecorationController extends Controller
 
     public function store(DecorationRequest $request)
     {
-
-        $provider_id = auth('provider')->user();
-        $provider = $provider_id->id;
+        $provider = auth('provider')->id();
 
         $imagePaths = [];
+
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('decorations', 'public');
-                $path_image = Storage::url($path);
-                $imagePaths[] = $path_image;
+                $imagePaths[] = Storage::url($path);
             }
         }
+
         $decoration = Decoration::create([
             'provider_id' => $provider,
             'information' => $request->information,
@@ -44,10 +44,15 @@ class DecorationController extends Controller
             'price' => $request->price,
             'images' => $imagePaths,
             'status' => false,
-
         ]);
 
-        return response()->json(['message' => 'Send the decoration for approve by admin'], 201);
+        if ($request->filled('occasion_ids')) {
+            $decoration->occasions()->attach($request->occasion_ids);
+        }
+
+        return response()->json([
+            'message' => 'Send the decoration for approve by admin'
+        ], 201);
     }
 
     public function MyDecorationsFalse()
@@ -86,53 +91,82 @@ class DecorationController extends Controller
 
     public function filterDecorations(Request $request, $providerId = null)
     {
-
-        //$sortOrder = in_array($request->get('sort'), ['asc', 'desc']) ? $request->get('sort') : 'asc';
-
-
         if ($providerId) {
-            $query = Provider::findOrFail($providerId)->decorations();
+            $query = Provider::findOrFail($providerId)
+                ->decorations()
+                ->with('occasions');
         } else {
-            $query = Decoration::query();
+            $query = Decoration::with('occasions');
         }
 
+        $query->where('status', true);
 
         if ($request->filled('price')) {
             $query->ofPrice($request->price);
         }
 
-
         if ($request->filled('location')) {
             $query->ofLocation($request->location);
         }
 
+        if ($request->filled('occasion_id')) {
+            $query->ofOccasion($request->occasion_id);
+        }
+
         $decorations = $query->get();
-        return response()->json(['Decorations:' => $decorations], 200);
+
+        return response()->json([
+            'Decorations' => $decorations
+        ], 200);
     }
 
     public function showDecoration($decorationId)
     {
-        $decoration = Decoration::where('id', $decorationId)->where('status', true)->without('status')->first();
+        $decoration = Decoration::with('occasions')
+            ->where('id', $decorationId)
+            ->where('status', true)
+            ->first();
 
         if (!$decoration) {
-            return response()->json(['message' => 'Decoration not found'], 404);
+            return response()->json([
+                'message' => 'Decoration not found'
+            ], 404);
         }
 
-        return response()->json(['message' => 'Decoration retrieved successfully', 'data' => $decoration]);
+        return response()->json([
+            'message' => 'Decoration retrieved successfully',
+            'data' => $decoration
+        ]);
     }
 
 
     public function indexDecorations()
     {
-        $decorations = Decoration::where('status', true)->get();
+        $decorations = Decoration::with('occasions')
+            ->where('status', true)
+            ->get();
 
-        return response()->json(['message' => 'Decorations retrieved successfully', 'data' => $decorations]);
+        return response()->json([
+            'message' => 'Decorations retrieved successfully',
+            'data' => $decorations
+        ]);
     }
 
     public function providerDecorations($providerId)
     {
-        $decorations = Decoration::where('provider_id', $providerId)->where('status', true)->get();
+        $decorations = Decoration::with('occasions')
+            ->where('provider_id', $providerId)
+            ->where('status', true)
+            ->get();
 
-        return response()->json(['message' => 'Provider decorations retrieved successfully', 'data' => $decorations]);
+        return response()->json([
+            'message' => 'Provider decorations retrieved successfully',
+            'data' => $decorations
+        ]);
+    }
+
+    public function indexOccasions()
+    {
+        return response()->json(Occasion::all());
     }
 }

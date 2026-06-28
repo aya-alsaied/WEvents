@@ -24,9 +24,15 @@ class DecorationRequest extends FormRequest
         return [
             'information' => 'required|string',
             'location' => 'required|string|max:255',
-            'price' => 'required',
-            'images' => 'required|mimes:jpg,jpeg,png,webp|max:2024',
-            'status' => 'sometimes|boolean'
+            'price' => 'required|numeric',
+
+            'images' => 'required|array|min:1',
+            'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
+
+            'occasion_ids' => 'required|array|min:1',
+            'occasion_ids.*' => 'exists:occasions,id',
+
+            'status' => 'sometimes|boolean',
         ];
     }
 }
