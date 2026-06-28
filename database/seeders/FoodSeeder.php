@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Food;
+use Illuminate\Support\Facades\Storage;
 
 class FoodSeeder extends Seeder
 {
@@ -20,7 +21,7 @@ class FoodSeeder extends Seeder
                 'description' => 'Luxury buffet',
                 'location' => 'Damascus',
                 'price' => 20,
-                'image' => 'food1.jpg',
+                'image' => Storage::url('Foods/food1.jpg'),
                 'status' => true,
             ],
             [
@@ -29,7 +30,7 @@ class FoodSeeder extends Seeder
                 'description' => 'Premium buffet',
                 'location' => 'Damascus',
                 'price' => 35,
-                'image' => 'food2.jpg',
+                'image' => Storage::url('Foods/food2.jpg'),
                 'status' => true,
             ]
         ]);

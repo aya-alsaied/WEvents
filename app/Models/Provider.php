@@ -10,7 +10,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 class Provider extends Authenticatable
 {
     use HasApiTokens;
-    protected $fillable = ['name', 'email', 'password', 'phone', 'country', 'type', 'image', 'background_image', 'isApproved'];
+    protected $fillable = ['name', 'email', 'password', 'phone', 'country', 'type', 'descriptions', 'image', 'background_image', 'isApproved'];
     protected $table = 'providers';
 
     protected $casts = [

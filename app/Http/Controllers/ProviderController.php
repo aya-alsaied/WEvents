@@ -38,6 +38,7 @@ class ProviderController extends Controller
                     'phone'      => '0999999999',
                     'country'    => 'Syria',
                     'type'       => 'provider',
+                    'descriptions' => $data['descriptions'],
                     'image'      => 'default.jpg',
                     'isApproved' => true,
                 ]
@@ -107,6 +108,7 @@ class ProviderController extends Controller
 
 
 
+
     public function register(Request $request)
     {
         $request->validate([
@@ -116,6 +118,7 @@ class ProviderController extends Controller
             'phone'       => 'required|string|digits:10|unique:providers,phone',
             'country'     => 'required|string',
             'type'        => 'required',
+            'descriptions' => 'required|string',
             'image'       => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'background_image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'service_ids'   => 'required|array',
@@ -135,6 +138,7 @@ class ProviderController extends Controller
             'phone'      => $request->phone,
             'country'    => $request->country,
             'type'       => $request->type,
+            'descriptions' => $request->descriptions,
             'image'      => $path_image,
             'background_image' => $path_bg_image,
             'isApproved' => false

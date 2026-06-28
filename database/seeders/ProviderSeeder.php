@@ -6,6 +6,7 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Provider;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class ProviderSeeder extends Seeder
 {
@@ -22,8 +23,9 @@ class ProviderSeeder extends Seeder
                 'phone' => '0991111111',
                 'country' => 'Syria',
                 'type' => 'provider',
-                'image' => 'provider1.jpg',
-                'background_image' => 'provider1.jpg',
+                'descriptions' => 'descriptions',
+                'image' => Storage::url('provider_images/provider1.jpg'),
+                'background_image' => Storage::url('provider_backgrounds/provider1.jpg'),
                 'isApproved' => true,
             ],
             [
@@ -33,8 +35,9 @@ class ProviderSeeder extends Seeder
                 'phone' => '0992222222',
                 'country' => 'Syria',
                 'type' => 'provider',
-                'image' => 'provider2.jpg',
-                'background_image' => 'provider1.jpg',
+                'descriptions' => 'descriptions',
+                'image' => Storage::url('provider_images/provider2.jpg'),
+                'background_image' => Storage::url('provider_backgrounds/provider1.jpg'),
                 'isApproved' => true,
             ]
         ]);

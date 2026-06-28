@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('phone')->unique();
             $table->string('country');
             $table->string('type');
+            $table->string('descriptions');
             $table->string('image');
             $table->string('background_image');
             $table->boolean('isApproved')->default(false);

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Decoration;
+use Illuminate\Support\Facades\Storage;
 
 class DecorationSeeder extends Seeder
 {
@@ -19,7 +20,7 @@ class DecorationSeeder extends Seeder
                 'information' => 'Wedding decoration package',
                 'location' => 'Damascus',
                 'price' => 500,
-                'images' => 'decoration1.jpg',
+                'images' => json_encode([Storage::url('Decorations/decoration1.jpg')]),
                 'status' => true,
             ]
         ]);

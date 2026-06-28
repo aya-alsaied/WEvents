@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\PublicParty;
+use Illuminate\Support\Facades\Storage;
 
 class PublicPartySeeder extends Seeder
 {
@@ -23,7 +24,7 @@ class PublicPartySeeder extends Seeder
                 'end_time' => '23:00:00',
                 'location' => 'Damascus',
                 'price' => 25,
-                'image' => 'party.jpg',
+                'image' => Storage::url('PublicParties/party.jpg'),
                 'tickets' => 200,
                 'status' => true,
             ]

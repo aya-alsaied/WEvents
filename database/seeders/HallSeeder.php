@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Hall;
+use Illuminate\Support\Facades\Storage;
 
 class HallSeeder extends Seeder
 {
@@ -24,7 +25,7 @@ class HallSeeder extends Seeder
                 'hour_price' => 150,
                 'information' => 'Luxury wedding hall',
                 'rules' => 'No smoking',
-                'images' => json_encode(['hall1.jpg']),
+                'images' => json_encode([Storage::url('Halls/hall1.jpg')]),
                 'buffer_minutes' => 60,
                 'status' => true,
             ],
@@ -38,7 +39,7 @@ class HallSeeder extends Seeder
                 'hour_price' => 200,
                 'information' => 'Outdoor events',
                 'rules' => 'No fireworks',
-                'images' => json_encode(['hall2.jpg']),
+                'images' => json_encode([Storage::url('Halls/hall2.jpg')]),
                 'buffer_minutes' => 60,
                 'status' => true,
             ]
