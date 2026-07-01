@@ -2,16 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Hall;
-use Illuminate\Support\Facades\Storage;
 
 class HallSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         Hall::insert([
@@ -25,9 +20,13 @@ class HallSeeder extends Seeder
                 'hour_price' => 150,
                 'information' => 'Luxury wedding hall',
                 'rules' => 'No smoking',
-                'images' => json_encode([Storage::url('Halls/hall1.jpg')]),
+                'images' => json_encode([
+                    asset('storage/halls/hall1.jpg')
+                ]),
                 'buffer_minutes' => 60,
                 'status' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
             [
                 'provider_id' => 1,
@@ -39,10 +38,14 @@ class HallSeeder extends Seeder
                 'hour_price' => 200,
                 'information' => 'Outdoor events',
                 'rules' => 'No fireworks',
-                'images' => json_encode([Storage::url('Halls/hall2.jpg')]),
+                'images' => json_encode([
+                    asset('storage/halls/hall2.jpg')
+                ]),
                 'buffer_minutes' => 60,
                 'status' => true,
-            ]
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
     }
 }

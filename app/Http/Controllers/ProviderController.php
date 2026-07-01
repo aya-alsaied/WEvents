@@ -15,87 +15,122 @@ use Illuminate\Http\Request;
 
 class ProviderController extends Controller
 {
-    public function importProviders(Request $request)
-    {
-        $request->validate([
-            'providers' => 'required|array',
-        ]);
+public function importProviders(Request $request)
+{
+    $request->validate([
+        'providers' => 'required|array',
+    ]);
 
+    // 1. جلب البروفايدر الحالي المسجل دخوله عبر التوكن (الحالي حصراً)
+    $currentProvider = auth('provider')->user();
+
+    if (!$currentProvider) {
+        return response()->json([
+            'message' => 'Unauthenticated or Provider not found'
+        ], 401);
+    }
+
+    DB::beginTransaction();
+
+    try {
         foreach ($request->providers as $data) {
+            $about = $data['about'] ?? [];
+            $pic = $data['pic'] ?? [];
 
-            if (!isset($data['email'])) {
-                continue;
+            $providerName = $about['name'] ?? $currentProvider->name;
+
+            // 2. تحديث بيانات البروفايدر الحالي "فقط" بناءً على الـ JSON الممرر
+            // تنبيه بروفيسور: تم إلغاء التخمين الثابت، التحديث يتم للتوكن الحالي حصراً
+            $currentProvider->update([
+                'name'             => $providerName,
+                'country'          => $about['location'] ?? $currentProvider->country,
+                'descriptions'     => $about['info'] ?? $currentProvider->descriptions,
+                'image'            => $pic['personalpic'] ?? $currentProvider->image,
+                'background_image' => $pic['backgroundpic'] ?? $currentProvider->background_image,
+            ]);
+
+            // 3. تخزين أو تحديث الـ Profile وربطه بـ ID البروفايدر الحالي صاحب التوكن
+            $currentProvider->profile()->updateOrCreate(
+                [
+                    'provider_id' => $currentProvider->id // يضمن التخزين للبروفايدر الصحيح
+                ],
+                [
+                    'theme'         => $data['theme'] ?? null,
+                    'pic'           => $data['pic'] ?? null,
+                    'about'         => $data['about'] ?? null,
+                    'services_data' => $data['services'] ?? null,
+                    'public_events' => $data['publicEvents'] ?? null,
+                    'recent'        => $data['recent'] ?? null,
+                    'benefits' => $data['benefits'] ?? null,
+                ]
+            );
+
+            // 4. ربط الخدمات في جدول الـ Pivot للبروفايدر الحالي
+            if (!empty($data['services']) && is_array($data['services'])) {
+                $serviceIds = array_column($data['services'], 'id');
+                $currentProvider->services()->sync($serviceIds); 
             }
-
-            $provider = Provider::updateOrCreate(
-                [
-                    'email' => $data['email']
-                ],
-                [
-                    'name'       => $data['name'] ?? null,
-                    'email'      => $data['email'],
-                    'password'   => bcrypt('12345678'),
-                    'phone'      => '0999999999',
-                    'country'    => 'Syria',
-                    'type'       => 'provider',
-                    'descriptions' => $data['descriptions'],
-                    'image'      => 'default.jpg',
-                    'isApproved' => true,
-                ]
-            );
-
-            $provider->profile()->updateOrCreate(
-                [
-                    'provider_id' => $provider->id
-                ],
-                [
-                    'theme'          => $data['theme'] ?? null,
-                    'pic'            => $data['pic'] ?? null,
-                    'navbar'         => $data['navbar'] ?? null,
-                    'hero'           => $data['hero'] ?? null,
-                    'about'          => $data['about'] ?? null,
-                    'services_data'  => $data['services_data'] ?? null,
-                    'public_events'  => $data['public_events'] ?? null,
-                    'recent'         => $data['recent'] ?? null,
-                    'benefits'       => $data['benefits'] ?? null,
-                ]
-            );
         }
 
-        return response()->json([
-            'message' => 'Providers imported successfully'
-        ]);
-    }
-
-    public function getMyProfile()
-    {
-        $provider = auth('provider')->user();
-
-        if (!$provider) {
-            return response()->json([
-                'message' => 'Provider not found'
-            ], 404);
-        }
-
-        $provider->load([
-            'profile',
-            'services',
-            'halls',
-            'foods',
-            'decorations',
-            'publicParties'
-        ]);
+        DB::commit();
 
         return response()->json([
-            'message' => 'Profile retrieved successfully',
-            'provider' => $provider
+            'message' => 'Your provider profile imported successfully!'
         ], 200);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'message' => 'Failed to import profile',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
+
+public function getMyProfile()
+{
+    // 1. جلب بيانات مقدم الخدمة الحالي المخول
+    $provider = auth('provider')->user();
+
+    if (!$provider) {
+        return response()->json([
+            'message' => 'Provider not found'
+        ], 404);
     }
 
+    // 2. تحميل العلاقة مع الملف الشخصي (Profile)
+    $provider->load('profile');
+    $profile = $provider->profile;
+
+    // 3. استخراج مصفوفة الـ IDs الخاصة بالحفلات العامة من الـ JSON
+    $publicEventIds = $profile?->public_events ?? [];
+
+    // 4. جلب تفاصيل الحفلات كاملة بشرط أن تنتمي لهذا البروفايدر حصراً
+    // تنبيه بروفيسور: أضفنا شرط المقارنة بـ provider_id لحماية وأمن البيانات
+    $publicEventsDetails = \App\Models\PublicParty::whereIn('id', $publicEventIds)
+        ->where('provider_id', $provider->id) // هذا السطر يضمن جلب حفلاته هو فقط
+        ->get();
+
+    // 5. إعادة تشكيل الاستجابة (Data Transformation)
+    $responseData = [
+        'id'            => $provider->id,
+        'theme'         => $profile?->theme ?? null,
+        'pic'           => $profile?->pic ?? null,
+        'about'         => $profile?->about ?? null,
+        'services'      => $profile?->services_data ?? [],
+        'publicEvents'  => $publicEventsDetails, // تفاصيل الحفلات الخاصة به فقط
+        'recent'        => $profile?->recent ?? [],
+        'benefits'      => $profile?->benefits ?? [],
+    ];
+
+    // 6. إرسال الاستجابة المطابقة والمؤمنة تماماً
+    return response()->json($responseData, 200);
+}
     public function showProvider($providerId)
     {
         $provider = Provider::with([
             'profile',
+            'wallet',
             'services',
             'halls',
             'foods',
@@ -123,6 +158,7 @@ class ProviderController extends Controller
     {
         $providers = Provider::with([
             'profile',
+            'wallet',
             'services',
             'halls',
             'foods',
@@ -171,6 +207,10 @@ class ProviderController extends Controller
             'image'      => $path_image,
             'background_image' => $path_bg_image,
             'isApproved' => false
+        ]);
+
+        $provider->wallet()->create([
+            'balance' => 0
         ]);
 
         if (!empty($request->service_ids)) {

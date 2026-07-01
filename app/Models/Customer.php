@@ -32,4 +32,9 @@ class Customer extends Authenticatable
     {
         return $this->hasMany(PublicPartyBooking::class);
     }
+
+    public function wallet()
+    {
+        return $this->morphOne(Wallet::class, 'walletable');
+    }
 }

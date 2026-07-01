@@ -28,8 +28,8 @@ class BookingController extends Controller
             'start_time'     => 'nullable|required_if:booking_type,hourly',
             'end_time'       => 'nullable|required_if:booking_type,hourly',
             'notes'          => 'nullable|string',
-            'services'       => 'nullable|array',
-            'services.*'     => 'integer|exists:services,id'
+            'services' => 'nullable|array',
+            'services.*' => 'integer|exists:hall_services,id',
         ]);
 
         $hall = Hall::findOrFail($request->hall_id);
@@ -95,6 +95,8 @@ class BookingController extends Controller
         }
 
         $totalPrice = $basePrice + $servicesPrice;
+        $adminCommission = $totalPrice * 0.20;
+        $providerAmount = $totalPrice - $adminCommission;
 
         DB::beginTransaction();
 
@@ -110,11 +112,13 @@ class BookingController extends Controller
                 'guest_count'          => $request->guest_count,
                 'notes'                => $request->notes,
                 'total_price'          => $totalPrice,
+                'admin_commission'     => $adminCommission,
+                'provider_amount'      => $providerAmount,
                 'status'               => 'pending'
             ]);
 
             if (!empty($servicesToAttach)) {
-                $booking->hall_services()->attach($servicesToAttach);
+               $booking->services()->attach($servicesToAttach);
             }
 
             $availability->update(['status' => 'booked']);
@@ -124,9 +128,15 @@ class BookingController extends Controller
             $booking->load('services');
 
             return response()->json([
-                'message'     => 'Booking created successfully',
-                'booking'     => $booking,
-                'total_price' => $totalPrice
+                'message' => 'Booking created successfully',
+                'booking' => $booking,
+                'pricing' => [
+                    'base_price' => $basePrice,
+                    'services_price' => $servicesPrice,
+                    'total_price' => $totalPrice,
+                    'admin_commission' => $adminCommission,
+                    'provider_amount' => $providerAmount
+                ]
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -342,12 +352,16 @@ class BookingController extends Controller
         $food = Food::findOrFail($request->food_id);
 
         $totalPrice = $food->price * $request->meal_count;
+        $adminCommission = $totalPrice * 0.20;
+        $providerAmount = $totalPrice - $adminCommission;
 
         $booking = FoodBooking::create([
             'food_id' => $request->food_id,
             'customer_id' => auth('customer')->id(),
             'meal_count' => $request->meal_count,
             'total_price' => $totalPrice,
+            'admin_commission' => $adminCommission,
+            'provider_amount' => $providerAmount,
             'event_date' => $request->event_date,
             'event_time' => $request->event_time,
             'notes' => $request->note,
@@ -356,9 +370,13 @@ class BookingController extends Controller
 
         return response()->json([
             'message' => 'Food booking created successfully',
-            'total_price' => $totalPrice,
+            'pricing' => [
+                'total_price' => $totalPrice,
+                'admin_commission' => $adminCommission,
+                'provider_amount' => $providerAmount
+            ],
             'booking' => $booking
-        ]);
+        ], 201);
     }
 
     public function providerFoodBookings()
@@ -515,21 +533,33 @@ class BookingController extends Controller
 
         $decoration = Decoration::findOrFail($request->decoration_id);
 
+        $totalPrice = $decoration->price;
+
+        $adminCommission = $totalPrice * 0.20;
+        $providerAmount = $totalPrice - $adminCommission;
+
         $booking = DecorationBooking::create([
             'decoration_id' => $request->decoration_id,
-            'customer_id' => auth()->id(),
+            'customer_id' => auth('customer')->id(),
             'event_date' => $request->event_date,
             'event_time' => $request->event_time,
             'notes' => $request->notes,
+            'total_price' => $totalPrice,
+            'admin_commission' => $adminCommission,
+            'provider_amount' => $providerAmount,
             'status' => 'pending',
             'payment_status' => 'unpaid'
         ]);
 
         return response()->json([
             'message' => 'Decoration booking request sent successfully',
-            'booking' => $booking,
-            'service_price' => $decoration->price
-        ]);
+            'pricing' => [
+                'total_price' => $totalPrice,
+                'admin_commission' => $adminCommission,
+                'provider_amount' => $providerAmount
+            ],
+            'booking' => $booking
+        ], 201);
     }
 
     public function providerDecorationBookings()
@@ -703,11 +733,16 @@ class BookingController extends Controller
 
         $totalPrice = $party->price * $request->ticket_count;
 
+        $adminCommission = $totalPrice * 0.20;
+        $providerAmount = $totalPrice - $adminCommission;
+
         $booking = PublicPartyBooking::create([
             'public_party_id' => $party->id,
-            'customer_id' => auth()->id(),
+            'customer_id' => auth('customer')->id(),
             'tickets_count' => $request->ticket_count,
             'total_price' => $totalPrice,
+            'admin_commission' => $adminCommission,
+            'provider_amount' => $providerAmount,
             'payment_deadline' => now()->addMinute(),
             'status' => 'pending',
             'payment_status' => 'unpaid'
@@ -717,8 +752,13 @@ class BookingController extends Controller
 
         return response()->json([
             'message' => 'Party booking created successfully',
+            'pricing' => [
+                'total_price' => $totalPrice,
+                'admin_commission' => $adminCommission,
+                'provider_amount' => $providerAmount
+            ],
             'booking' => $booking
-        ]);
+        ], 201);
     }
 
     public function providerPartyBookings()

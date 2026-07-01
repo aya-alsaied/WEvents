@@ -20,8 +20,6 @@ return new class extends Migration
 
             $table->json('theme')->nullable();
             $table->json('pic')->nullable();
-            $table->json('navbar')->nullable();
-            $table->json('hero')->nullable();
             $table->json('about')->nullable();
             $table->json('services_data')->nullable();
             $table->json('public_events')->nullable();

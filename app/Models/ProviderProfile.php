@@ -10,8 +10,6 @@ class ProviderProfile extends Model
         'provider_id',
         'theme',
         'pic',
-        'navbar',
-        'hero',
         'about',
         'services_data',
         'public_events',
@@ -22,8 +20,6 @@ class ProviderProfile extends Model
     protected $casts = [
         'theme' => 'array',
         'pic' => 'array',
-        'navbar' => 'array',
-        'hero' => 'array',
         'about' => 'array',
         'services_data' => 'array',
         'public_events' => 'array',

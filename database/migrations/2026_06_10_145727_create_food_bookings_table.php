@@ -18,6 +18,8 @@ return new class extends Migration
             $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
             $table->integer('meal_count');
             $table->decimal('total_price', 8, 2);
+            $table->decimal('admin_commission', 10, 2)->default(0);
+            $table->decimal('provider_amount', 10, 2)->default(0);
             $table->date('event_date');
             $table->time('event_time');
             $table->text('notes')->nullable();

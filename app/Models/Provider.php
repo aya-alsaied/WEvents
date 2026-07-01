@@ -49,7 +49,10 @@ class Provider extends Authenticatable
         return $this->hasMany(PublicParty::class, 'provider_id');
     }
 
-
+    public function wallet()
+    {
+        return $this->morphOne(Wallet::class, 'walletable');
+    }
 
 
 

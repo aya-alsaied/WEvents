@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,
             ProviderServiceSeeder::class,
             HallSeeder::class,
+            HallServiceSeeder::class,
             FoodSeeder::class,
             OccasionSeeder::class,
             DecorationSeeder::class,

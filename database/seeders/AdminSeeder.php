@@ -7,8 +7,6 @@ use Illuminate\Database\Seeder;
 use App\Models\Admin;
 use Illuminate\Support\Facades\Hash;
 
-
-
 class AdminSeeder extends Seeder
 {
     /**
@@ -16,14 +14,17 @@ class AdminSeeder extends Seeder
      */
     public function run(): void
     {
-        Admin::create([
-
+        // 1. نقوم بحفظ الأدمن المنشأ داخل متغير اسمه $admin
+        $admin = Admin::create([
             'name' => 'Aya',
             'email' => 'ayaalsaied207@gmail.com',
-            'password' => Hash::make(777777777),
+            'password' => Hash::make('777777777'), // يفضل وضع الرقم بين علامتي تنصيص ليعامل كنص آمن
             'type' => 'admin',
+        ]);
 
-
+        // 2. الآن المتغير $admin أصبح معرّفاً ويمكننا إنشاء المحفظة له بنجاح
+        $admin->wallet()->create([
+            'balance' => 0
         ]);
     }
 }

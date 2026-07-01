@@ -15,7 +15,7 @@ class ProviderSeeder extends Seeder
      */
     public function run(): void
     {
-        Provider::insert([
+        $providers = [
             [
                 'name' => 'Royal Events',
                 'email' => 'provider1@test.com',
@@ -40,6 +40,16 @@ class ProviderSeeder extends Seeder
                 'background_image' => Storage::url('provider_backgrounds/provider1.jpg'),
                 'isApproved' => true,
             ]
-        ]);
+        ];
+
+        foreach ($providers as $providerData) {
+            // ننشئ المزود عبر الموديل ليعود لنا الكائن مع الـ ID الخاص به
+            $provider = Provider::create($providerData);
+            
+            // ننشئ له المحفظة المرتبطة به تلقائياً
+            $provider->wallet()->create([
+                'balance' => 0
+            ]);
+        }
     }
 }

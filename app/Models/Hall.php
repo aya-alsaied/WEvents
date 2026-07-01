@@ -28,9 +28,10 @@ class Hall extends Model
     public function bookings()
     {
         return $this->hasMany(HallBooking::class);
+        
     }
 
-    public function hallServices()
+    public function services()
     {
         return $this->hasMany(HallService::class);
     }

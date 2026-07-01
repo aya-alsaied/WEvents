@@ -14,7 +14,7 @@ class CustomerSeeder extends Seeder
      */
     public function run(): void
     {
-        Customer::insert([
+        $customers = [
             [
                 'name' => 'Aya',
                 'email' => 'aya@test.com',
@@ -23,7 +23,6 @@ class CustomerSeeder extends Seeder
                 'country' => 'Syria',
                 'type' => 'customer',
                 'isApproved' => true,
-
             ],
             [
                 'name' => 'Ahmad',
@@ -34,6 +33,16 @@ class CustomerSeeder extends Seeder
                 'type' => 'customer',
                 'isApproved' => true,
             ]
-        ]);
+        ];
+
+        foreach ($customers as $customerData) {
+            // ننشئ العميل عبر الموديل
+            $customer = Customer::create($customerData);
+            
+            // ننشئ له المحفظة تلقائياً
+            $customer->wallet()->create([
+                'balance' => 0
+            ]);
+        }
     }
 }

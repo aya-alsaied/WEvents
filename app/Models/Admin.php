@@ -11,4 +11,9 @@ class Admin extends Model
 
     protected $fillable = ['name', 'email', 'type', 'password'];
     protected $table = 'admins';
+
+    public function wallet()
+    {
+        return $this->morphOne(Wallet::class, 'walletable');
+    }
 }

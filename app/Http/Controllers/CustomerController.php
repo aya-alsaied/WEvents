@@ -43,6 +43,10 @@ class CustomerController extends Controller
             'isApproved' => true,
 
         ]);
+
+        $customer->wallet()->create([
+            'balance' => 0
+        ]);
         //$token = $customer->createToken('CustomerToken')->plainTextToken;
         return response()->json([
             //'token' => $token,

@@ -18,6 +18,8 @@ class HallBooking extends Model
         'booking_type',
         'notes',
         'total_price',
+        'admin_commission',
+        'provider_amount',
         'status',
         'payment_status',
         'payment_deadline',
@@ -27,6 +29,8 @@ class HallBooking extends Model
         'date' => 'date',
         'payment_deadline' => 'datetime',
         'total_price' => 'decimal:2',
+        'admin_commission' => 'decimal:2',
+        'provider_amount' => 'decimal:2',
     ];
 
     public function hall()
@@ -41,11 +45,17 @@ class HallBooking extends Model
 
     public function availability()
     {
-        return $this->belongsTo(HallAvailability::class, 'hall_availability_id');
+        return $this->belongsTo(
+            HallAvailability::class,
+            'hall_availability_id'
+        );
     }
 
-    public function hall_services()
+    public function services()
     {
-        return $this->belongsToMany(HallService::class, 'booking_service')->withPivot('price')->withTimestamps();
+        return $this->belongsToMany(
+            HallService::class,
+            'booking_service'
+        )->withPivot('price')->withTimestamps();
     }
 }
