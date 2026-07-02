@@ -279,6 +279,11 @@ class AdminController extends Controller
             ->get()
             ->map(function ($hall) {
                 $hall->post_type = 'hall';
+                $hall->provider_name = $hall->provider?->name;
+                $hall->provider_image = $hall->provider?->image;
+
+                unset($hall->provider);
+
                 return $hall;
             });
 
@@ -287,6 +292,11 @@ class AdminController extends Controller
             ->get()
             ->map(function ($food) {
                 $food->post_type = 'food';
+                $food->provider_name = $food->provider?->name;
+                $food->provider_image = $food->provider?->image;
+
+                unset($food->provider);
+
                 return $food;
             });
 
@@ -295,6 +305,11 @@ class AdminController extends Controller
             ->get()
             ->map(function ($decoration) {
                 $decoration->post_type = 'decoration';
+                $decoration->provider_name = $decoration->provider?->name;
+                $decoration->provider_image = $decoration->provider?->image;
+
+                unset($decoration->provider);
+
                 return $decoration;
             });
 
@@ -303,6 +318,11 @@ class AdminController extends Controller
             ->get()
             ->map(function ($party) {
                 $party->post_type = 'public_party';
+                $party->provider_name = $party->provider?->name;
+                $party->provider_image = $party->provider?->image;
+
+                unset($party->provider);
+
                 return $party;
             });
 
@@ -316,6 +336,6 @@ class AdminController extends Controller
         return response()->json([
             'message' => 'Approved posts retrieved successfully',
             'data' => $posts
-        ]);
+        ], 200);
     }
 }

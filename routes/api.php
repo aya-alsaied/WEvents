@@ -43,7 +43,8 @@ Route::get('provider/show/{providerId}', [ProviderController::class, 'showProvid
 Route::get('providers/index', [ProviderController::class, 'indexProviders'])->middleware('auth:sanctum');
 Route::post('providers/import', [ProviderController::class, 'importProviders'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::get('provider/profile', [ProviderController::class, 'getMyProfile']);
-Route::get('/providers/{providerId}/posts', [ProviderController::class, 'getProviderPosts']);
+Route::get('/providers/{providerId}/posts', [ProviderController::class, 'getProviderPosts'])// هاد لعرض بوستات بروفايدر معين
+;
 
 //Function Approve by Admin
 Route::put('providers/approveOrActive', [AdminController::class, 'approveProvider'])->middleware('auth:sanctum')->middleware('CheckAdmin');
@@ -56,7 +57,9 @@ Route::delete('providers/delete/{id}', [AdminController::class, 'deleteProvider'
 Route::delete('users/delete/{id}', [AdminController::class, 'deleteUser'])->middleware('auth:sanctum')->middleware('CheckAdmin');
 Route::patch('providers/{id}/suspend', [AdminController::class, 'suspendProvider'])->middleware('auth:sanctum')->middleware('CheckAdmin');
 Route::patch('users/{id}/suspend', [AdminController::class, 'suspendUser'])->middleware('auth:sanctum')->middleware('CheckAdmin');
-Route::get('/admin/approved-posts', [AdminController::class, 'getAllApprovedPosts'])->middleware('auth:sanctum')->middleware('CheckAdmin');;
+Route::get('/admin/approved-posts', [AdminController::class, 'getAllApprovedPosts'])->middleware('auth:sanctum')->middleware('CheckAdmin');// هاد عرض كل البوستات المقبولة للادمن;
+
+
 
 //Function For Customers
 Route::post('customers/register',  [CustomerController::class, 'register']);
@@ -154,8 +157,8 @@ Route::get('provider/party-bookings', [BookingController::class, 'providerPartyB
 Route::get('party-bookings/my-bookings', [BookingController::class, 'customerPartyBookings'])->middleware('auth:sanctum');
 Route::patch('party-bookings/{id}/confirm-payment', [BookingController::class, 'confirmPartyPayment'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::patch('party-bookings/{id}/cancel', [BookingController::class, 'cancelPartyBooking'])->middleware('auth:sanctum');
-Route::get('provider/all-bookings', [BookingController::class, 'providerAllBookings'])->middleware('auth:sanctum')->middleware('CheckProvider');
-Route::get('provider/bookings', [BookingController::class, 'providerBookingsByStatus'])->middleware('auth:sanctum')->middleware('CheckProvider');
+Route::get('provider/all-bookings', [BookingController::class, 'providerAllBookings'])->middleware('auth:sanctum')->middleware('CheckProvider');// لعرض كل الحجزات لبروفايدر معين
+Route::get('provider/bookings', [BookingController::class, 'providerBookingsByStatus'])->middleware('auth:sanctum')->middleware('CheckProvider');// عرض كل الحجوزات لبروفايدر معين حسب حالة الحجر
 
 
 /////              Wallet Routes              ///////
