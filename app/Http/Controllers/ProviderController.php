@@ -87,118 +87,137 @@ class ProviderController extends Controller
         }
     }
 
-    public function getMyProfile()
-    {
-    
-        $provider = auth('provider')->user();
+public function getMyProfile()
+{
+    $provider = auth('provider')->user();
 
-        if (!$provider) {
-            return response()->json([
-                'message' => 'Provider not found'
-            ], 404);
-        }
-
-        $provider->load(['profile', 'services']);
-        $profile = $provider->profile;
-
-        $rawPublicEvents = $profile?->public_events ?? [];
-        $publicEventIds = [];
-
-        if (!empty($rawPublicEvents)) {
-            if (is_array($rawPublicEvents) && isset($rawPublicEvents[0]) && is_array($rawPublicEvents[0])) {
-                $publicEventIds = array_column($rawPublicEvents, 'id');
-            } else {
-                $publicEventIds = $rawPublicEvents;
-            }
-        }
-
-        if (empty($publicEventIds)) {
-            $publicEventIds = \App\Models\PublicParty::where('provider_id', $provider->id)
-                ->where('status', true)
-                ->pluck('id')
-                ->toArray();
-        }
-
-        $servicesData = [];
-        if (!empty($profile?->services_data)) {
-            $servicesData = $profile->services_data;
-        } else {
-            foreach ($provider->services as $service) {
-                $serviceName = strtolower($service->name);
-                
-                $type = 'hall';
-                $href = '/halls';
-                
-                if ($serviceName === 'food' || $serviceName === 'foods' || $serviceName === 'food services') {
-                    $type = 'food';
-                    $href = '/foodservices';
-                } elseif ($serviceName === 'decorations' || $serviceName === 'decoration' || $serviceName === 'planning') {
-                    $type = 'planning';
-                    $href = '/plannings';
-                }
-
-                $servicesData[] = [
-                    'id'    => $service->id,
-                    'label' => $service->name,
-                    'href'  => $href,
-                    'type'  => $type
-                ];
-            }
-            
-            if (!empty($publicEventIds)) {
-                $servicesData[] = [
-                    'id'    => 4,
-                    'label' => 'Public Events',
-                    'href'  => '/events',
-                    'type'  => 'public_event'
-                ];
-            }
-        }
-
-        $responseData = [
-            'id'    => $provider->id,
-            'theme' => $profile?->theme ?? [
-                'background' => '#ffffff',
-                'text'       => '#111111',
-                'primary'    => '#000',
-                'button'     => ['background' => '#000000', 'text' => '#ffffff'],
-                'card'       => ['background' => '#ffffff', 'text' => '#000000', 'buttoncolor' => '#000000', 'buttontext' => '#ffffff']
-            ],
-            
-            'pic' => $profile?->pic ?? [
-                'benefitpic'    => $provider->image ?? "/images/2.jpg",
-                'backgroundpic' => $provider->background_image ?? "/images/2.jpg",
-                'personalpic'   => $provider->image ?? "/images/OIP.webp"
-            ],
-
-            'about' => $profile?->about ?? [
-                'name'     => $provider->name,
-                'location' => $provider->country ?? 'Damascus',
-                'title'    => 'About Us',
-                'info'     => $provider->descriptions ?? 'Information about this profile and what services are provided by this website.'
-            ],
-            'services'     => $servicesData,
-            'publicEvents' => $publicEventIds,
-            'recent'       => $profile?->recent ?? [1, 2, 3],
-            
-            'benefits'     => $profile?->benefits ?? [
-                [
-                    'title' => 'All in one',
-                    'info'  => 'Plan venue, decor, and food in one place'
-                ],
-                [
-                    'title' => 'Easy management',
-                    'info'  => 'Manage all your events from one dashboard'
-                ],
-                [
-                    'title' => 'Fast booking',
-                    'info'  => 'Book services quickly without complications'
-                ]
-            ]
-        ];
-
-        return response()->json($responseData, 200);
+    if (!$provider) {
+        return response()->json([
+            'message' => 'Provider not found'
+        ], 404);
     }
+
+    $provider->load(['profile', 'services']);
+    $profile = $provider->profile;
+
+    $rawPublicEvents = $profile?->public_events ?? [];
+    $publicEventIds = [];
+
+    if (!empty($rawPublicEvents)) {
+        if (is_array($rawPublicEvents) && isset($rawPublicEvents[0]) && is_array($rawPublicEvents[0])) {
+            $publicEventIds = array_column($rawPublicEvents, 'id');
+        } else {
+            $publicEventIds = $rawPublicEvents;
+        }
+    }
+
+    if (empty($publicEventIds)) {
+        $publicEventIds = \App\Models\PublicParty::where('provider_id', $provider->id)
+            ->where('status', true)
+            ->pluck('id')
+            ->toArray();
+    }
+
+    $servicesData = [];
+    if (!empty($profile?->services_data)) {
+        $servicesData = $profile->services_data;
+    } else {
+        foreach ($provider->services as $service) {
+            $serviceName = strtolower($service->name);
+            
+            $type = 'hall';
+            $href = '/halls';
+            
+            if ($serviceName === 'food' || $serviceName === 'foods' || $serviceName === 'food services') {
+                $type = 'food';
+                $href = '/foodservices';
+            } elseif ($serviceName === 'decorations' || $serviceName === 'decoration' || $serviceName === 'planning') {
+                $type = 'planning';
+                $href = '/plannings';
+            }
+
+            $servicesData[] = [
+                'id'    => $service->id,
+                'label' => $service->name,
+                'href'  => $href,
+                'type'  => $type
+            ];
+        }
+        
+        if (!empty($publicEventIds)) {
+            $servicesData[] = [
+                'id'    => 4,
+                'label' => 'Public Events',
+                'href'  => '/events',
+                'type'  => 'public_event'
+            ];
+        }
+    }
+
+    // المنطق الجديد لفلترة الـ benefitpic بناءً على محتوى قاعدة البيانات الفعلي
+    $benefitPicValue = null;
+    if ($profile && is_array($profile->pic)) {
+        if (array_key_exists('benefitpic', $profile->pic)) {
+            $storedPic = $profile->pic['benefitpic'];
+            $providerImage = $provider->image; 
+
+            // فحص ذكي: إذا كانت الصورة المخزنة هي نفسها صورة الشخصية للمزود، نعتبرها null (لم يتم عمل import مخصص)
+            if (empty($storedPic) || $storedPic === $providerImage) {
+                $benefitPicValue = null;
+            } else {
+                $benefitPicValue = $storedPic;
+            }
+        } else {
+            $benefitPicValue = null;
+        }
+    } else {
+        $benefitPicValue = null; 
+    }
+
+    $responseData = [
+        'id'    => $provider->id,
+        'theme' => $profile?->theme ?? [
+            'background' => '#ffffff',
+            'text'       => '#111111',
+            'primary'    => '#000',
+            'button'     => ['background' => '#000000', 'text' => '#ffffff'],
+            'card'       => ['background' => '#ffffff', 'text' => '#000000', 'buttoncolor' => '#000000', 'buttontext' => '#ffffff']
+        ],
+        
+        'pic' => [
+            'benefitpic'    => $benefitPicValue,
+            'backgroundpic' => $profile?->pic['backgroundpic'] ?? ($provider->background_image ?? "/images/2.jpg"),
+            'personalpic'   => $profile?->pic['personalpic'] ?? ($provider->image ?? "/images/OIP.webp")
+        ],
+
+        'about' => $profile?->about ?? [
+            'name'     => $provider->name,
+            'location' => $provider->country ?? 'Damascus',
+            'title'    => 'About Us',
+            'info'     => $provider->descriptions ?? 'Information about this profile and what services are provided by this website.'
+        ],
+        'services'     => $servicesData,
+        'publicEvents' => $publicEventIds,
+        'recent'       => $profile?->recent ?? [1, 2, 3],
+        
+        'benefits'     => $profile?->benefits ?? [
+            [
+                'title' => 'All in one',
+                'info'  => 'Plan venue, decor, and food in one place'
+            ],
+            [
+                'title' => 'Easy management',
+                'info'  => 'Manage all your events from one dashboard'
+            ],
+            [
+                'title' => 'Fast booking',
+                'info'  => 'Book services quickly without complications'
+            ]
+        ]
+    ];
+
+    return response()->json($responseData, 200);
+}
     public function showProvider($providerId)
     {
         $provider = Provider::with([
