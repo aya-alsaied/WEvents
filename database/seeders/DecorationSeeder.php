@@ -17,7 +17,7 @@ class DecorationSeeder extends Seeder
                 'location' => 'Damascus',
                 'price' => 500,
                 'images' => json_encode([
-                    Storage::url('Decorations/decoration1.jpg')
+                    Storage::url('storage/Decorations/decoration1.jpg')
                 ]),
                 'status' => true,
             ],
@@ -37,7 +37,7 @@ class DecorationSeeder extends Seeder
                 'location' => 'Aleppo',
                 'price' => 250,
                 'images' => json_encode([
-                    Storage::url('Decorations/decoration3.jpg')
+                    Storage::url('storage/Decorations/decoration3.jpg')
                 ]),
                 'status' => true,
             ],

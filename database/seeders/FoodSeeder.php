@@ -21,7 +21,7 @@ class FoodSeeder extends Seeder
                 'description' => 'Luxury buffet',
                 'location' => 'Damascus',
                 'price' => 20,
-                'image' => Storage::url('Foods/food1.jpg'),
+                'image' => Storage::url('storage/Foods/food1.jpg'),
                 'status' => true,
             ],
             [
@@ -30,7 +30,7 @@ class FoodSeeder extends Seeder
                 'description' => 'Premium buffet',
                 'location' => 'Damascus',
                 'price' => 35,
-                'image' => Storage::url('Foods/food2.jpg'),
+                'image' => Storage::url('storage/Foods/food2.jpg'),
                 'status' => true,
             ]
         ]);

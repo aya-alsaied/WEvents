@@ -24,7 +24,7 @@ class ProviderSeeder extends Seeder
                 'country' => 'Syria',
                 'type' => 'provider',
                 'descriptions' => 'descriptions',
-                'image' => Storage::url('provider_images/provider1.jpg'),
+                'image' => Storage::url('storage/provider_images/provider1.jpg'),
                 'background_image' => Storage::url('provider_backgrounds/provider1.jpg'),
                 'isApproved' => true,
             ],
@@ -36,7 +36,7 @@ class ProviderSeeder extends Seeder
                 'country' => 'Syria',
                 'type' => 'provider',
                 'descriptions' => 'descriptions',
-                'image' => Storage::url('provider_images/provider2.jpg'),
+                'image' => Storage::url('storage/provider_images/provider2.jpg'),
                 'background_image' => Storage::url('provider_backgrounds/provider1.jpg'),
                 'isApproved' => true,
             ]

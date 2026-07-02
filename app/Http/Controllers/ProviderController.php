@@ -15,183 +15,190 @@ use Illuminate\Http\Request;
 
 class ProviderController extends Controller
 {
-public function importProviders(Request $request)
-{
-    $request->validate([
-        'providers' => 'required|array',
-    ]);
+    public function importProviders(Request $request)
+    {
+        $request->validate([
+            'providers' => 'required|array',
+        ]);
 
-    // 1. جلب البروفايدر الحالي المسجل دخوله عبر التوكن (الحالي حصراً)
-    $currentProvider = auth('provider')->user();
+        // 1. جلب البروفايدر الحالي المسجل دخوله عبر التوكن (الحالي حصراً)
+        $currentProvider = auth('provider')->user();
 
-    if (!$currentProvider) {
-        return response()->json([
-            'message' => 'Unauthenticated or Provider not found'
-        ], 401);
+        if (!$currentProvider) {
+            return response()->json([
+                'message' => 'Unauthenticated or Provider not found'
+            ], 401);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($request->providers as $data) {
+                $about = $data['about'] ?? [];
+                $pic = $data['pic'] ?? [];
+
+                $providerName = $about['name'] ?? $currentProvider->name;
+
+                // 2. تحديث بيانات البروفايدر الحالي "فقط" بناءً على الـ JSON الممرر
+                // تنبيه بروفيسور: تم إلغاء التخمين الثابت، التحديث يتم للتوكن الحالي حصراً
+                $currentProvider->update([
+                    'name'             => $providerName,
+                    'country'          => $about['location'] ?? $currentProvider->country,
+                    'descriptions'     => $about['info'] ?? $currentProvider->descriptions,
+                    'image'            => $pic['personalpic'] ?? $currentProvider->image,
+                    'background_image' => $pic['backgroundpic'] ?? $currentProvider->background_image,
+                ]);
+
+                // 3. تخزين أو تحديث الـ Profile وربطه بـ ID البروفايدر الحالي صاحب التوكن
+                $currentProvider->profile()->updateOrCreate(
+                    [
+                        'provider_id' => $currentProvider->id // يضمن التخزين للبروفايدر الصحيح
+                    ],
+                    [
+                        'theme'         => $data['theme'] ?? null,
+                        'pic'           => $data['pic'] ?? null,
+                        'about'         => $data['about'] ?? null,
+                        'services_data' => $data['services'] ?? null,
+                        'public_events' => $data['publicEvents'] ?? null,
+                        'recent'        => $data['recent'] ?? null,
+                        'benefits' => $data['benefits'] ?? null,
+                    ]
+                );
+
+                // 4. ربط الخدمات في جدول الـ Pivot للبروفايدر الحالي
+                if (!empty($data['services']) && is_array($data['services'])) {
+                    $serviceIds = array_column($data['services'], 'id');
+                    $currentProvider->services()->sync($serviceIds); 
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Your provider profile imported successfully!'
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to import profile',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
     }
 
-    DB::beginTransaction();
+    public function getMyProfile()
+    {
+    
+        $provider = auth('provider')->user();
 
-    try {
-        foreach ($request->providers as $data) {
-            $about = $data['about'] ?? [];
-            $pic = $data['pic'] ?? [];
+        if (!$provider) {
+            return response()->json([
+                'message' => 'Provider not found'
+            ], 404);
+        }
 
-            $providerName = $about['name'] ?? $currentProvider->name;
+        $provider->load(['profile', 'services']);
+        $profile = $provider->profile;
 
-            // 2. تحديث بيانات البروفايدر الحالي "فقط" بناءً على الـ JSON الممرر
-            // تنبيه بروفيسور: تم إلغاء التخمين الثابت، التحديث يتم للتوكن الحالي حصراً
-            $currentProvider->update([
-                'name'             => $providerName,
-                'country'          => $about['location'] ?? $currentProvider->country,
-                'descriptions'     => $about['info'] ?? $currentProvider->descriptions,
-                'image'            => $pic['personalpic'] ?? $currentProvider->image,
-                'background_image' => $pic['backgroundpic'] ?? $currentProvider->background_image,
-            ]);
+        $rawPublicEvents = $profile?->public_events ?? [];
+        $publicEventIds = [];
 
-            // 3. تخزين أو تحديث الـ Profile وربطه بـ ID البروفايدر الحالي صاحب التوكن
-            $currentProvider->profile()->updateOrCreate(
+        if (!empty($rawPublicEvents)) {
+            if (is_array($rawPublicEvents) && isset($rawPublicEvents[0]) && is_array($rawPublicEvents[0])) {
+                $publicEventIds = array_column($rawPublicEvents, 'id');
+            } else {
+                $publicEventIds = $rawPublicEvents;
+            }
+        }
+
+        if (empty($publicEventIds)) {
+            $publicEventIds = \App\Models\PublicParty::where('provider_id', $provider->id)
+                ->where('status', true)
+                ->pluck('id')
+                ->toArray();
+        }
+
+        $servicesData = [];
+        if (!empty($profile?->services_data)) {
+            $servicesData = $profile->services_data;
+        } else {
+            foreach ($provider->services as $service) {
+                $serviceName = strtolower($service->name);
+                
+                $type = 'hall';
+                $href = '/halls';
+                
+                if ($serviceName === 'food' || $serviceName === 'foods' || $serviceName === 'food services') {
+                    $type = 'food';
+                    $href = '/foodservices';
+                } elseif ($serviceName === 'decorations' || $serviceName === 'decoration' || $serviceName === 'planning') {
+                    $type = 'planning';
+                    $href = '/plannings';
+                }
+
+                $servicesData[] = [
+                    'id'    => $service->id,
+                    'label' => $service->name,
+                    'href'  => $href,
+                    'type'  => $type
+                ];
+            }
+            
+            if (!empty($publicEventIds)) {
+                $servicesData[] = [
+                    'id'    => 4,
+                    'label' => 'Public Events',
+                    'href'  => '/events',
+                    'type'  => 'public_event'
+                ];
+            }
+        }
+
+        $responseData = [
+            'id'    => $provider->id,
+            'theme' => $profile?->theme ?? [
+                'background' => '#ffffff',
+                'text'       => '#111111',
+                'primary'    => '#000',
+                'button'     => ['background' => '#000000', 'text' => '#ffffff'],
+                'card'       => ['background' => '#ffffff', 'text' => '#000000', 'buttoncolor' => '#000000', 'buttontext' => '#ffffff']
+            ],
+            
+            'pic' => $profile?->pic ?? [
+                'benefitpic'    => $provider->image ?? "/images/2.jpg",
+                'backgroundpic' => $provider->background_image ?? "/images/2.jpg",
+                'personalpic'   => $provider->image ?? "/images/OIP.webp"
+            ],
+
+            'about' => $profile?->about ?? [
+                'name'     => $provider->name,
+                'location' => $provider->country ?? 'Damascus',
+                'title'    => 'About Us',
+                'info'     => $provider->descriptions ?? 'Information about this profile and what services are provided by this website.'
+            ],
+            'services'     => $servicesData,
+            'publicEvents' => $publicEventIds,
+            'recent'       => $profile?->recent ?? [1, 2, 3],
+            
+            'benefits'     => $profile?->benefits ?? [
                 [
-                    'provider_id' => $currentProvider->id // يضمن التخزين للبروفايدر الصحيح
+                    'title' => 'All in one',
+                    'info'  => 'Plan venue, decor, and food in one place'
                 ],
                 [
-                    'theme'         => $data['theme'] ?? null,
-                    'pic'           => $data['pic'] ?? null,
-                    'about'         => $data['about'] ?? null,
-                    'services_data' => $data['services'] ?? null,
-                    'public_events' => $data['publicEvents'] ?? null,
-                    'recent'        => $data['recent'] ?? null,
-                    'benefits' => $data['benefits'] ?? null,
+                    'title' => 'Easy management',
+                    'info'  => 'Manage all your events from one dashboard'
+                ],
+                [
+                    'title' => 'Fast booking',
+                    'info'  => 'Book services quickly without complications'
                 ]
-            );
+            ]
+        ];
 
-            // 4. ربط الخدمات في جدول الـ Pivot للبروفايدر الحالي
-            if (!empty($data['services']) && is_array($data['services'])) {
-                $serviceIds = array_column($data['services'], 'id');
-                $currentProvider->services()->sync($serviceIds); 
-            }
-        }
-
-        DB::commit();
-
-        return response()->json([
-            'message' => 'Your provider profile imported successfully!'
-        ], 200);
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json([
-            'message' => 'Failed to import profile',
-            'error'   => $e->getMessage()
-        ], 500);
+        return response()->json($responseData, 200);
     }
-}
-
-public function getMyProfile()
-{
-    // 1. جلب بيانات مقدم الخدمة الحالي المخول
-    $provider = auth('provider')->user();
-
-    if (!$provider) {
-        return response()->json([
-            'message' => 'Provider not found'
-        ], 404);
-    }
-
-    // 2. تحميل العلاقات الأساسية
-    $provider->load(['profile', 'services']);
-    $profile = $provider->profile;
-
-    // 3. معالجة الحفلات العامة بشكل مرن وذكي
-    $rawPublicEvents = $profile?->public_events ?? [];
-    $publicEventIds = [];
-
-    if (!empty($rawPublicEvents)) {
-        if (is_array($rawPublicEvents) && isset($rawPublicEvents[0]) && is_array($rawPublicEvents[0])) {
-            $publicEventIds = array_column($rawPublicEvents, 'id');
-        } else {
-            $publicEventIds = $rawPublicEvents;
-        }
-    }
-
-    // هنا العلاج: إذا كانت مصفوفة الـ IDs فارغة (لم يقم بعمل Import)، نجلب كل حفلاته مباشرة عبر الـ provider_id
-    if (empty($publicEventIds)) {
-        $publicEventsDetails = \App\Models\PublicParty::where('provider_id', $provider->id)
-            ->where('status', true)
-            ->get();
-    } else {
-        // إذا قام بعمل Import، نلتزم بالـ IDs المخصصة التي اختارها ورتبها داخل البروفايل
-        $publicEventsDetails = \App\Models\PublicParty::whereIn('id', $publicEventIds)
-            ->where('provider_id', $provider->id)
-            ->get();
-    }
-
-    // 4. بناء تفاصيل الخدمات بشكل ديناميكي (كما جهزناها سابقاً)
-    $servicesDetails = [];
-
-    if (!empty($profile?->services_data)) {
-        $servicesDetails = $profile->services_data;
-    } else {
-        foreach ($provider->services as $service) {
-            $serviceName = strtolower($service->name);
-
-            if ($serviceName === 'halls' || $serviceName === 'hall') {
-                $servicesDetails[] = [
-                    'service_id' => $service->id,
-                    'service_name' => $service->name,
-                    'items' => \App\Models\Hall::where('provider_id', $provider->id)->where('status', true)->get()
-                ];
-            } 
-            
-            elseif ($serviceName === 'food' || $serviceName === 'foods') {
-                $servicesDetails[] = [
-                    'service_id' => $service->id,
-                    'service_name' => $service->name,
-                    'items' => \App\Models\Food::where('provider_id', $provider->id)->where('status', true)->get()
-                ];
-            } 
-            
-            elseif ($serviceName === 'decorations' || $serviceName === 'decoration') {
-                $servicesDetails[] = [
-                    'service_id' => $service->id,
-                    'service_name' => $service->name,
-                    'items' => \App\Models\Decoration::where('provider_id', $provider->id)->where('status', true)->get()
-                ];
-            }
-        }
-    }
-
-    // 5. بناء استجابة موحدة ونظيفة جداً
-    $responseData = [
-        'id'               => $provider->id,
-        'name'             => $provider->name,
-        'email'            => $provider->email,
-        'phone'            => $provider->phone,
-        'country'          => $provider->country,
-        'type'             => $provider->type,
-        'descriptions'     => $provider->descriptions,
-        'image'            => $provider->image,
-        'background_image' => $provider->background_image,
-        'isApproved'       => (bool) $provider->isApproved,
-        
-        'theme'            => $profile?->theme ?? [
-            'background'  => '#ffffff',
-            'text'        => '#111111',
-            'primary'     => '#000',
-            'button'      => ['background' => '#000000', 'text' => '#ffffff'],
-            'card'        => ['background' => '#ffffff', 'text' => '#000000', 'buttoncolor' => '#000000', 'buttontext' => '#ffffff']
-        ],
-        'pic'              => $profile?->pic ?? null,
-        'about'            => $profile?->about ?? null,
-        
-        'services'         => $servicesDetails,
-        'publicEvents'     => $publicEventsDetails, // ستظهر الحفلات الآن مباشرة بناءً على التعديل الفوقي
-        'recent'           => $profile?->recent ?? [],
-        'benefits'         => $profile?->benefits ?? [],
-    ];
-
-    return response()->json($responseData, 200);
-}
     public function showProvider($providerId)
     {
         $provider = Provider::with([

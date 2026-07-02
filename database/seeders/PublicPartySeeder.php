@@ -24,7 +24,7 @@ class PublicPartySeeder extends Seeder
                 'end_time' => '23:00:00',
                 'location' => 'Damascus',
                 'price' => 25,
-                'image' => Storage::url('PublicParties/party.jpg'),
+                'image' => Storage::url('storage/PublicParties/party.jpg'),
                 'tickets' => 200,
                 'status' => true,
             ]
