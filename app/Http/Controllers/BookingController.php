@@ -7,6 +7,7 @@ use App\Models\HallBooking;
 use App\Models\Hall;
 use App\Models\FoodBooking;
 use App\Models\Food;
+use App\Models\Admin;
 use App\Models\Decoration;
 use App\Models\DecorationBooking;
 use App\Models\HallService;
@@ -32,57 +33,36 @@ class BookingController extends Controller
             'services.*'     => 'integer|exists:hall_services,id',
         ]);
 
+        $customer = auth('customer')->user();
+
         $hall = Hall::findOrFail($request->hall_id);
 
         if ($request->guest_count > $hall->CapacityOfPeople) {
             return response()->json(['message' => 'Hall capacity exceeded'], 422);
         }
 
-        $basePrice = 0;
-        $availability = null;
+        // availability check
+        $availability = HallAvailability::where('hall_id', $hall->id)
+            ->where('date', $request->date)
+            ->where('status', 'available')
+            ->first();
 
-        if ($request->booking_type == 'full_day') {
-            $availability = HallAvailability::where('hall_id', $hall->id)
-                ->where('date', $request->date)
-                ->where('availability_type', 'full_day')
-                ->where('status', 'available')
-                ->first();
-
-            if (!$availability) {
-                return response()->json(['message' => 'This day is not available'], 422);
-            }
-
-            $basePrice = $hall->full_day_price;
+        if (!$availability) {
+            return response()->json(['message' => 'Not available'], 422);
         }
 
-        if ($request->booking_type == 'hourly') {
-            $availability = HallAvailability::where('hall_id', $hall->id)
-                ->where('date', $request->date)
-                ->where('start_time', $request->start_time)
-                ->where('end_time', $request->end_time)
-                ->where('availability_type', 'hourly')
-                ->where('status', 'available')
-                ->first();
+        // price
+        $basePrice = $request->booking_type == 'full_day'
+            ? $hall->full_day_price
+            : (($request->end_time && $request->start_time)
+                ? ((strtotime($request->end_time) - strtotime($request->start_time)) / 3600) * $hall->hour_price
+                : 0);
 
-            if (!$availability) {
-                return response()->json(['message' => 'This time slot is not available'], 422);
-            }
-
-            $start = strtotime($request->start_time);
-            $end = strtotime($request->end_time);
-
-            if ($end <= $start) {
-                return response()->json(['message' => 'End time must be greater than start time'], 422);
-            }
-
-            $hours = ($end - $start) / 3600;
-            $basePrice = $hours * $hall->hour_price;
-        }
-
-        $servicesToAttach = [];
+        // services
         $servicesPrice = 0;
+        $servicesToAttach = [];
 
-        if ($request->has('services') && !empty($request->services)) {
+        if ($request->services) {
             $services = HallService::whereIn('id', $request->services)
                 ->where('hall_id', $hall->id)
                 ->get();
@@ -94,25 +74,21 @@ class BookingController extends Controller
         }
 
         $totalPrice = $basePrice + $servicesPrice;
-        $adminCommission = $totalPrice * 0.20;
-        $providerAmount = $totalPrice - $adminCommission;
 
-        // جلب زبون المحفظة والتحقق من الرصيد قبل بدء الـ Transaction
-        $customer = auth('customer')->user();
-        
-        // التحقق من وجود علاقة wallet، وإن لم توجد نمنع الحجز
+        // wallet check
         if (!$customer->wallet || $customer->wallet->balance < $totalPrice) {
-            return response()->json(['message' => 'Insufficient wallet balance. Please charge your wallet.'], 400);
+            return response()->json(['message' => 'Insufficient balance'], 400);
         }
 
         DB::beginTransaction();
 
         try {
-            // 1. تجميد الرصيد من محفظة الزبون
+
+            // freeze money
             $customer->wallet->decrement('balance', $totalPrice);
             $customer->wallet->increment('frozen_balance', $totalPrice);
 
-            // 2. إنشاء الحجز بحالة معلقة وحالة دفع "مجمد"
+            // create booking
             $booking = HallBooking::create([
                 'hall_id'              => $hall->id,
                 'hall_availability_id' => $availability->id,
@@ -124,39 +100,28 @@ class BookingController extends Controller
                 'guest_count'          => $request->guest_count,
                 'notes'                => $request->notes,
                 'total_price'          => $totalPrice,
-                'admin_commission'     => $adminCommission,
-                'provider_amount'      => $providerAmount,
+                'admin_commission'     => $totalPrice * 0.20,
+                'provider_amount'      => $totalPrice * 0.80,
                 'status'               => 'pending',
-                'payment_status'       => 'holding' // تم تجميد المبلغ بنجاح
+                'payment_status'       => 'holding',
             ]);
 
-            if (!empty($servicesToAttach)) {
-               $booking->services()->attach($servicesToAttach);
+            if ($servicesToAttach) {
+                $booking->services()->attach($servicesToAttach);
             }
 
             $availability->update(['status' => 'booked']);
 
             DB::commit();
 
-            $booking->load('services');
-
             return response()->json([
-                'message' => 'Booking created successfully and amount has been frozen.',
-                'booking' => $booking,
-                'pricing' => [
-                    'base_price' => $basePrice,
-                    'services_price' => $servicesPrice,
-                    'total_price' => $totalPrice,
-                    'admin_commission' => $adminCommission,
-                    'provider_amount' => $providerAmount
-                ]
+                'message' => 'Booking created & money frozen',
+                'booking' => $booking
             ], 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'Something went wrong, booking failed.',
-                'error'   => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
 
@@ -195,119 +160,134 @@ class BookingController extends Controller
         return response()->json($bookings);
     }
 
-    public function approveHallBooking($id)
-    {
-        // شحن علاقة العميل والمزود مع الحسابات والمحافظ المقترنة بها
-        $booking = HallBooking::with(['hall.provider.wallet', 'customer.wallet'])->findOrFail($id);
+public function approveHallBooking($id)
+{
+    $booking = HallBooking::with([
+        'hall.provider.wallet',
+        'customer.wallet'
+    ])->findOrFail($id);
 
-        if ($booking->hall->provider_id !== auth('sanctum')->user()->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+    $providerId = auth('sanctum')->id();
 
-        if ($booking->status !== 'pending') {
-            return response()->json(['message' => 'Booking is not pending'], 422);
-        }
-
-        DB::beginTransaction();
-
-        try {
-            // جلب الأدمن العام للمنصة ومحفظته
-            $admin = \App\Models\User::where('role', 'admin')->first();
-            if (!$admin) {
-                throw new \Exception("Admin account not found for commission transfer.");
-            }
-
-            // قفل السجلات في قاعدة البيانات لمنع التداخل أثناء التحديث (Race Conditions)
-            $customerWallet = DB::table('wallets')->where('id', $booking->customer->wallet->id)->lockForUpdate()->first();
-            $providerWallet = DB::table('wallets')->where('id', $booking->hall->provider->wallet->id)->lockForUpdate()->first();
-            $adminWallet    = DB::table('wallets')->where('user_id', $admin->id)->lockForUpdate()->first();
-
-            if (!$customerWallet) {
-                throw new \Exception("Customer wallet not found.");
-            }
-
-            // 1. خصم الأموال من الرصيد المجمد للزبون نهائياً
-            DB::table('wallets')->where('id', $customerWallet->id)->decrement('frozen_balance', $booking->total_price);
-
-            // 2. تحويل الصافي (80%) مباشرة لمحفظة المزود المتاحة
-            if ($providerWallet) {
-                DB::table('wallets')->where('id', $providerWallet->id)->increment('balance', $booking->provider_amount);
-            }
-
-            // 3. تخزين عمولة الأدمن (20%) وتحويلها إلى محفظته
-            if ($adminWallet) {
-                DB::table('wallets')->where('id', $adminWallet->id)->increment('balance', $booking->admin_commission);
-            }
-
-            // 4. تحديث الحجز ليصبح مؤكداً ومدفوعاً تلقائياً
-            $booking->update([
-                'status'         => 'confirmed',
-                'payment_status' => 'paid'
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Booking approved, admin commission stored, and payments distributed successfully.',
-                'booking' => $booking
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Failed to process payments during approval.',
-                'error'   => $e->getMessage()
-            ], 500);
-        }
+    if ($booking->hall->provider_id != $providerId) {
+        return response()->json([
+            'message' => 'Unauthorized'
+        ], 403);
     }
+
+    if ($booking->status !== 'pending') {
+        return response()->json([
+            'message' => 'Invalid booking status'
+        ], 422);
+    }
+
+    DB::beginTransaction();
+
+    try {
+
+        $customerWallet = $booking->customer->wallet;
+        $providerWallet = $booking->hall->provider->wallet;
+        $admin = Admin::first();
+
+        if (!$customerWallet) {
+            throw new \Exception('Customer wallet not found.');
+        }
+
+        if (!$providerWallet) {
+            throw new \Exception('Provider wallet not found.');
+        }
+
+        if (!$admin || !$admin->wallet) {
+            throw new \Exception('Admin wallet not found.');
+        }
+
+        $adminWallet = $admin->wallet;
+
+        /*
+        |--------------------------------------------------
+        | تحويل الأموال
+        |--------------------------------------------------
+        */
+
+        // إزالة التجميد عن المبلغ
+        $customerWallet->decrement(
+            'frozen_balance',
+            $booking->total_price
+        );
+
+        // إضافة حصة المزود
+        $providerWallet->increment(
+            'balance',
+            $booking->provider_amount
+        );
+
+        // إضافة عمولة الأدمن
+        $adminWallet->increment(
+            'balance',
+            $booking->admin_commission
+        );
+
+        /*
+        |--------------------------------------------------
+        | تحديث الحجز
+        |--------------------------------------------------
+        */
+
+        $booking->update([
+            'status' => 'confirmed',
+            'payment_status' => 'paid',
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'message' => 'Booking approved successfully.',
+            'booking' => $booking->fresh()
+        ]);
+
+    } catch (\Exception $e) {
+
+        DB::rollBack();
+
+        return response()->json([
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
 
     public function rejectHallBooking($id)
     {
-        $booking = HallBooking::with([
-            'hall',
-            'availability',
-            'customer.wallet'
-        ])->findOrFail($id);
+        $booking = HallBooking::with(['customer.wallet', 'hall'])->findOrFail($id);
 
-        if ($booking->hall->provider_id !== auth('sanctum')->user()->id) {
+        if ($booking->hall->provider_id !== auth('sanctum')->id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        if ($booking->status !== 'pending') {
-            return response()->json(['message' => 'Booking is not pending'], 422);
         }
 
         DB::beginTransaction();
 
         try {
-            $customerWallet = $booking->customer->wallet;
 
-            // إعادة الأموال المجمدة كاملة إلى رصيد الزبون المتاح
-            if ($customerWallet) {
-                $customerWallet->decrement('frozen_balance', $booking->total_price);
-                $customerWallet->increment('balance', $booking->total_price);
+            $wallet = $booking->customer->wallet;
+
+            if ($booking->payment_status === 'holding') {
+                $wallet->decrement('frozen_balance', $booking->total_price);
+                $wallet->increment('balance', $booking->total_price);
             }
 
             $booking->update([
-                'status'         => 'rejected',
+                'status' => 'rejected',
                 'payment_status' => 'refunded'
             ]);
 
-            $booking->availability()->update([
-                'status' => 'available'
-            ]);
+            $booking->availability()->update(['status' => 'available']);
 
             DB::commit();
 
-            return response()->json([
-                'message' => 'Booking rejected successfully and amount refunded to customer.',
-                'booking' => $booking
-            ]);
+            return response()->json(['message' => 'Booking rejected']);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'Failed to reject booking.',
-                'error'   => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
 
@@ -327,57 +307,39 @@ class BookingController extends Controller
 
     public function cancelHallBooking($id)
     {
-        $booking = HallBooking::with([
-            'hall',
-            'availability',
-            'customer.wallet'
-        ])->findOrFail($id);
+        $booking = HallBooking::with(['customer.wallet'])->findOrFail($id);
 
-        $user = auth()->user();
-
-        $isCustomer = $booking->customer_id == $user->id;
-        $isProvider = $booking->hall->provider_id == $user->id;
-
-        if (!$isCustomer && !$isProvider) {
+        if ($booking->customer_id !== auth('customer')->id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if ($booking->status === 'cancelled') {
-            return response()->json(['message' => 'Already cancelled'], 422);
+        if ($booking->status !== 'pending') {
+            return response()->json(['message' => 'Cannot cancel'], 422);
         }
 
         DB::beginTransaction();
 
         try {
-            // فك التجميد وإرجاع المال فقط إذا كان الحجز لم يتم قبوله بعد (ما زال pending ومجمّد)
-            if ($booking->status === 'pending' && $booking->payment_status === 'holding') {
-                $customerWallet = $booking->customer->wallet;
-                if ($customerWallet) {
-                    $customerWallet->decrement('frozen_balance', $booking->total_price);
-                    $customerWallet->increment('balance', $booking->total_price);
-                }
-                $booking->payment_status = 'refunded';
-            }
 
-            $booking->status = 'cancelled';
-            $booking->save();
+            $wallet = $booking->customer->wallet;
 
-            $booking->availability()->update([
-                'status' => 'available'
+            $wallet->decrement('frozen_balance', $booking->total_price);
+            $wallet->increment('balance', $booking->total_price);
+
+            $booking->update([
+                'status' => 'cancelled',
+                'payment_status' => 'refunded'
             ]);
+
+            $booking->availability()->update(['status' => 'available']);
 
             DB::commit();
 
-            return response()->json([
-                'message' => 'Booking cancelled successfully.',
-                'booking' => $booking
-            ]);
+            return response()->json(['message' => 'Cancelled successfully']);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'Failed to cancel booking.',
-                'error'   => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
    // Food Booking

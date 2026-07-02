@@ -23,7 +23,7 @@ return new class extends Migration
             $table->decimal('admin_commission', 10, 2)->default(0);
             $table->decimal('provider_amount', 10, 2)->default(0);
             $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled', 'confirmed'])->default('pending');
-            $table->enum('payment_status', ['unpaid', 'paid'])->default('unpaid');
+            $table->enum('payment_status', [ 'unpaid', 'holding', 'paid','refunded'])->default('unpaid');
             $table->dateTime('payment_deadline')->nullable();
             $table->timestamps();
         });

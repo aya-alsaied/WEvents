@@ -42,7 +42,8 @@ Route::post('provider/assign', [ProviderController::class, 'assignMyServices'])-
 Route::get('provider/show/{providerId}', [ProviderController::class, 'showProvider'])->middleware('auth:sanctum');
 Route::get('providers/index', [ProviderController::class, 'indexProviders'])->middleware('auth:sanctum');
 Route::post('providers/import', [ProviderController::class, 'importProviders'])->middleware('auth:sanctum')->middleware('CheckProvider');
-Route::get('provider/profile', [ProviderController::class, 'getMyProfile'])->middleware('auth:sanctum');
+Route::get('provider/profile', [ProviderController::class, 'getMyProfile']);
+Route::get('/providers/{providerId}/posts', [ProviderController::class, 'getProviderPosts']);
 
 //Function Approve by Admin
 Route::put('providers/approveOrActive', [AdminController::class, 'approveProvider'])->middleware('auth:sanctum')->middleware('CheckAdmin');
@@ -63,14 +64,14 @@ Route::post('customers/register',  [CustomerController::class, 'register']);
 
 
 //Function For Halls
-Route::get('halls/inside', [HallController::class, 'HallInside'])->middleware('auth:sanctum');
-Route::get('halls/outside', [HallController::class, 'HallOutside'])->middleware('auth:sanctum');
+Route::get('halls/inside', [HallController::class, 'HallInside']);
+Route::get('halls/outside', [HallController::class, 'HallOutside']);
 Route::get('halls/unapproved', [HallController::class, 'getUnapprovedHalls'])->middleware('auth:sanctum')->middleware('CheckAdmin');
 Route::get('halls/approved', [HallController::class, 'getApprovedHalls'])->middleware('auth:sanctum')->middleware('CheckAdmin');
 Route::post('halls/store', [HallController::class, 'store'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::get('get/MyHallsFalse', [HallController::class, 'MyHallsFalse'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::get('get/MyHallsTrue', [HallController::class, 'MyHallsTrue'])->middleware('auth:sanctum')->middleware('CheckProvider');
-Route::post('halls/{providerId?}', [HallController::class, 'filterHalls']);
+Route::post('halls/{providerId?}', [HallController::class, 'filterHalls']);// هاد للفلترة
 Route::delete('hall/delete/{hallId}', [HallController::class, 'deleteHall'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::get('hall/show/{hallId}', [HallController::class, 'showHall'])->middleware('auth:sanctum');
 Route::get('hall/index', [HallController::class, 'indexHalls'])->middleware('auth:sanctum');
@@ -90,10 +91,10 @@ Route::get('get/MyFoodsFalse', [FoodController::class, 'MyFoodsFalse'])->middlew
 Route::get('get/MyFoodsTrue', [FoodController::class, 'MyFoodsTrue'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::post('food/store', [FoodController::class, 'store'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::delete('food/delete/{foodId}', [FoodController::class, 'deleteFood'])->middleware('auth:sanctum')->middleware('CheckProvider');
-Route::post('foods/{providerId?}', [FoodController::class, 'filterFoods']);
-Route::get('food/show/{foodId}', [FoodController::class, 'showFood'])->middleware('auth:sanctum');
-Route::get('food/index', [FoodController::class, 'indexFoods'])->middleware('auth:sanctum');
-Route::get('food/{providerId}', [FoodController::class, 'providerFoods'])->middleware('auth:sanctum');
+Route::post('foods/{providerId?}', [FoodController::class, 'filterFoods']); // هاد فلترة 
+Route::get('food/show/{foodId}', [FoodController::class, 'showFood']);
+Route::get('food/index', [FoodController::class, 'indexFoods']);
+Route::get('food/{providerId}', [FoodController::class, 'providerFoods']);
 
 //Function For Public Parties
 Route::get('party/unapproved', [PublicPartyController::class, 'getUnapprovedPublicParties'])->middleware('auth:sanctum')->middleware('CheckAdmin');
@@ -102,10 +103,10 @@ Route::get('get/MyPublicPartiesFalse', [PublicPartyController::class, 'MyPublicP
 Route::get('get/MyPublicPartiesTrue', [PublicPartyController::class, 'MyPublicPartiesTrue'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::post('publicParties/store', [PublicPartyController::class, 'store'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::delete('publicParties/delete/{partyId}', [PublicPartyController::class, 'deleteParty'])->middleware('auth:sanctum')->middleware('CheckProvider');
-Route::post('publicParties/{providerId?}', [PublicPartyController::class, 'filterParties']);
-Route::get('publicParties/show/{partyId}', [PublicPartyController::class, 'showParty'])->middleware('auth:sanctum');
-Route::get('publicParties/index', [PublicPartyController::class, 'indexParties'])->middleware('auth:sanctum');
-Route::get('publicParties/{providerId}', [PublicPartyController::class, 'providerParties'])->middleware('auth:sanctum');
+Route::post('publicParties/{providerId?}', [PublicPartyController::class, 'filterParties']);// هاد فلترة 
+Route::get('publicParties/show/{partyId}', [PublicPartyController::class, 'showParty']);
+Route::get('publicParties/index', [PublicPartyController::class, 'indexParties']);
+Route::get('publicParties/{providerId}', [PublicPartyController::class, 'providerParties']);
 
 
 //Function For Decoration
@@ -115,10 +116,10 @@ Route::post('decorations/store', [DecorationController::class, 'store'])->middle
 Route::get('get/MyDecorationsFalse', [DecorationController::class, 'MyDecorationsFalse'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::get('get/MyDecorationsTrue', [DecorationController::class, 'MyDecorationsTrue'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::delete('decoration/delete/{decorationId}', [DecorationController::class, 'deleteDecoration'])->middleware('auth:sanctum')->middleware('CheckProvider');
-Route::post('decorations/{providerId?}', [DecorationController::class, 'filterDecorations']);
-Route::get('decoration/show/{decorationId}', [DecorationController::class, 'showDecoration'])->middleware('auth:sanctum');
-Route::get('decoration/index', [DecorationController::class, 'indexDecorations'])->middleware('auth:sanctum');
-Route::get('decoration/{providerId}', [DecorationController::class, 'providerDecorations'])->middleware('auth:sanctum');
+Route::post('decorations/{providerId?}', [DecorationController::class, 'filterDecorations']);// هاد فلترة 
+Route::get('decoration/show/{decorationId}', [DecorationController::class, 'showDecoration']);
+Route::get('decoration/index', [DecorationController::class, 'indexDecorations']);
+Route::get('decoration/{providerId}', [DecorationController::class, 'providerDecorations']);
 Route::get('/occasions', [DecorationController::class, 'indexOccasions']);
 
 //Function For Booking
@@ -130,7 +131,6 @@ Route::get('provider/hall-bookings', [BookingController::class, 'providerHallBoo
 Route::get('hall-bookings/my-bookings', [BookingController::class, 'customerHallBookings'])->middleware('auth:sanctum');
 Route::patch('hall-bookings/{id}/approve', [BookingController::class, 'approveHallBooking'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::patch('hall-bookings/{id}/reject', [BookingController::class, 'rejectHallBooking'])->middleware('auth:sanctum')->middleware('CheckProvider');
-Route::patch('hall-bookings/{id}/confirm-payment', [BookingController::class, 'confirmHallPayment'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::patch('hall-bookings/{id}/cancel', [BookingController::class, 'cancelHallBooking'])->middleware('auth:sanctum');
 // Food Booking
 Route::post('food-bookings', [BookingController::class, 'bookFood'])->middleware('auth:sanctum');

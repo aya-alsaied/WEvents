@@ -198,22 +198,9 @@ public function getMyProfile()
         ],
         'services'     => $servicesData,
         'publicEvents' => $publicEventIds,
-        'recent'       => $profile?->recent ?? [1, 2, 3],
+        'recent'       => $profile?->recent ?? [],
         
-        'benefits'     => $profile?->benefits ?? [
-            [
-                'title' => 'All in one',
-                'info'  => 'Plan venue, decor, and food in one place'
-            ],
-            [
-                'title' => 'Easy management',
-                'info'  => 'Manage all your events from one dashboard'
-            ],
-            [
-                'title' => 'Fast booking',
-                'info'  => 'Book services quickly without complications'
-            ]
-        ]
+        'benefits'     => $profile?->benefits ?? []
     ];
 
     return response()->json($responseData, 200);
@@ -352,4 +339,27 @@ public function getMyProfile()
 
         return response()->json(['message' => 'Add Services Successful', 'services' => $provider->services()->get()], 201);
     }
+
+public function getProviderPosts($providerId)
+{
+    $provider = Provider::where('isApproved', true)
+        ->find($providerId);
+
+    if (!$provider) {
+        return response()->json([
+            'message' => 'Provider not found'
+        ], 404);
+    }
+
+    return response()->json([
+        'message' => 'Provider posts retrieved successfully',
+        'provider_name' => $provider->name,
+        'data' => [
+            'halls' => $provider->halls()->with('provider:id,name')->get(),
+            'foods' => $provider->foods()->with('provider:id,name')->get(),
+            'decorations' => $provider->decorations()->with('provider:id,name')->get(),
+            'public_events' => $provider->publicParties()->with('provider:id,name')->get(),
+        ]
+    ]);
+}
 }
