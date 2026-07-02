@@ -12,6 +12,8 @@ use App\Http\Controllers\HallController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\HallServiceController;
 use App\Http\Controllers\PublicPartyController;
+use App\Http\Controllers\WalletController;
+
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -154,3 +156,11 @@ Route::patch('party-bookings/{id}/confirm-payment', [BookingController::class, '
 Route::patch('party-bookings/{id}/cancel', [BookingController::class, 'cancelPartyBooking'])->middleware('auth:sanctum');
 Route::get('provider/all-bookings', [BookingController::class, 'providerAllBookings'])->middleware('auth:sanctum')->middleware('CheckProvider');
 Route::get('provider/bookings', [BookingController::class, 'providerBookingsByStatus'])->middleware('auth:sanctum')->middleware('CheckProvider');
+
+
+/////              Wallet Routes              ///////
+Route::middleware('auth:customer')->group(function () {
+    Route::get('/wallet',[WalletController::class, 'myWallet']);
+    Route::get( '/wallet/transactions', [WalletController::class, 'transactions']);
+    Route::post('/wallet/deposit', [WalletController::class, 'deposit'] );
+});

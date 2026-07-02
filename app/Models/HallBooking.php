@@ -58,4 +58,12 @@ class HallBooking extends Model
             'booking_service'
         )->withPivot('price')->withTimestamps();
     }
+
+    public function transactions()
+    {
+        return $this->morphMany(
+            WalletTransaction::class,
+            'bookable'
+        );
+    }
 }

@@ -37,4 +37,12 @@ class DecorationBooking extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
+    public function transactions()
+    {
+        return $this->morphMany(
+            WalletTransaction::class,
+            'bookable'
+        );
+    }
 }

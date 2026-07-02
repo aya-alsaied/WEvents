@@ -98,32 +98,98 @@ public function getMyProfile()
         ], 404);
     }
 
-    // 2. تحميل العلاقة مع الملف الشخصي (Profile)
-    $provider->load('profile');
+    // 2. تحميل العلاقات الأساسية
+    $provider->load(['profile', 'services']);
     $profile = $provider->profile;
 
-    // 3. استخراج مصفوفة الـ IDs الخاصة بالحفلات العامة من الـ JSON
-    $publicEventIds = $profile?->public_events ?? [];
+    // 3. معالجة الحفلات العامة بشكل مرن وذكي
+    $rawPublicEvents = $profile?->public_events ?? [];
+    $publicEventIds = [];
 
-    // 4. جلب تفاصيل الحفلات كاملة بشرط أن تنتمي لهذا البروفايدر حصراً
-    // تنبيه بروفيسور: أضفنا شرط المقارنة بـ provider_id لحماية وأمن البيانات
-    $publicEventsDetails = \App\Models\PublicParty::whereIn('id', $publicEventIds)
-        ->where('provider_id', $provider->id) // هذا السطر يضمن جلب حفلاته هو فقط
-        ->get();
+    if (!empty($rawPublicEvents)) {
+        if (is_array($rawPublicEvents) && isset($rawPublicEvents[0]) && is_array($rawPublicEvents[0])) {
+            $publicEventIds = array_column($rawPublicEvents, 'id');
+        } else {
+            $publicEventIds = $rawPublicEvents;
+        }
+    }
 
-    // 5. إعادة تشكيل الاستجابة (Data Transformation)
+    // هنا العلاج: إذا كانت مصفوفة الـ IDs فارغة (لم يقم بعمل Import)، نجلب كل حفلاته مباشرة عبر الـ provider_id
+    if (empty($publicEventIds)) {
+        $publicEventsDetails = \App\Models\PublicParty::where('provider_id', $provider->id)
+            ->where('status', true)
+            ->get();
+    } else {
+        // إذا قام بعمل Import، نلتزم بالـ IDs المخصصة التي اختارها ورتبها داخل البروفايل
+        $publicEventsDetails = \App\Models\PublicParty::whereIn('id', $publicEventIds)
+            ->where('provider_id', $provider->id)
+            ->get();
+    }
+
+    // 4. بناء تفاصيل الخدمات بشكل ديناميكي (كما جهزناها سابقاً)
+    $servicesDetails = [];
+
+    if (!empty($profile?->services_data)) {
+        $servicesDetails = $profile->services_data;
+    } else {
+        foreach ($provider->services as $service) {
+            $serviceName = strtolower($service->name);
+
+            if ($serviceName === 'halls' || $serviceName === 'hall') {
+                $servicesDetails[] = [
+                    'service_id' => $service->id,
+                    'service_name' => $service->name,
+                    'items' => \App\Models\Hall::where('provider_id', $provider->id)->where('status', true)->get()
+                ];
+            } 
+            
+            elseif ($serviceName === 'food' || $serviceName === 'foods') {
+                $servicesDetails[] = [
+                    'service_id' => $service->id,
+                    'service_name' => $service->name,
+                    'items' => \App\Models\Food::where('provider_id', $provider->id)->where('status', true)->get()
+                ];
+            } 
+            
+            elseif ($serviceName === 'decorations' || $serviceName === 'decoration') {
+                $servicesDetails[] = [
+                    'service_id' => $service->id,
+                    'service_name' => $service->name,
+                    'items' => \App\Models\Decoration::where('provider_id', $provider->id)->where('status', true)->get()
+                ];
+            }
+        }
+    }
+
+    // 5. بناء استجابة موحدة ونظيفة جداً
     $responseData = [
-        'id'            => $provider->id,
-        'theme'         => $profile?->theme ?? null,
-        'pic'           => $profile?->pic ?? null,
-        'about'         => $profile?->about ?? null,
-        'services'      => $profile?->services_data ?? [],
-        'publicEvents'  => $publicEventsDetails, // تفاصيل الحفلات الخاصة به فقط
-        'recent'        => $profile?->recent ?? [],
-        'benefits'      => $profile?->benefits ?? [],
+        'id'               => $provider->id,
+        'name'             => $provider->name,
+        'email'            => $provider->email,
+        'phone'            => $provider->phone,
+        'country'          => $provider->country,
+        'type'             => $provider->type,
+        'descriptions'     => $provider->descriptions,
+        'image'            => $provider->image,
+        'background_image' => $provider->background_image,
+        'isApproved'       => (bool) $provider->isApproved,
+        
+        'theme'            => $profile?->theme ?? [
+            'background'  => '#ffffff',
+            'text'        => '#111111',
+            'primary'     => '#000',
+            'button'      => ['background' => '#000000', 'text' => '#ffffff'],
+            'card'        => ['background' => '#ffffff', 'text' => '#000000', 'buttoncolor' => '#000000', 'buttontext' => '#ffffff']
+        ],
+        'pic'              => $profile?->pic ?? null,
+        'about'            => $profile?->about ?? null,
+        
+        'services'         => $servicesDetails,
+        'publicEvents'     => $publicEventsDetails, // ستظهر الحفلات الآن مباشرة بناءً على التعديل الفوقي
+        'recent'           => $profile?->recent ?? [],
+        'benefits'         => $profile?->benefits ?? [],
     ];
 
-    // 6. إرسال الاستجابة المطابقة والمؤمنة تماماً
     return response()->json($responseData, 200);
 }
     public function showProvider($providerId)

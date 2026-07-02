@@ -38,4 +38,12 @@ class PublicPartyBooking extends Model
     {
         return $this->belongsTo(PublicParty::class);
     }
+
+    public function transactions()
+    {
+        return $this->morphMany(
+            WalletTransaction::class,
+            'bookable'
+        );
+    }
 }
